@@ -104,25 +104,28 @@ jobs:
     - name: ⚙️ Validate JavaScript & Check for Bugs
       run: |
         echo "=== Validating JavaScript ==="
-        npm install -g eslint
+        # Install eslint and the required globals package
+        npm install -g eslint @eslint/js globals
         
-        # Create basic ESLint config
-        cat > .eslintrc.json << 'EOF'
-        {
-          "env": {
-            "browser": true,
-            "es2021": true
+        # Create basic ESLint config in the new 'flat config' format
+        cat > eslint.config.js << 'EOF'
+        import globals from "globals";
+        import pluginJs from "@eslint/js";
+
+        export default [
+          {
+            languageOptions: {
+              ecmaVersion: 12,
+              sourceType: "module",
+              globals: globals.browser
+            },
+            rules: {
+              "no-unused-vars": "warn",
+              "no-console": "off"
+            }
           },
-          "extends": "eslint:recommended",
-          "parserOptions": {
-            "ecmaVersion": 12,
-            "sourceType": "module"
-          },
-          "rules": {
-            "no-unused-vars": "warn",
-            "no-console": "off"
-          }
-        }
+          pluginJs.configs.recommended,
+        ];
         EOF
         
         # Check JavaScript syntax and common bugs
@@ -147,6 +150,7 @@ jobs:
         fi
         
         echo "✅ JavaScript validation complete"
+
     
     # Step 7: Check File Sizes
     - name: 📊 Check File Sizes
