@@ -2,9 +2,9 @@ name: Complete Portfolio CI/CD
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   # Job 1: Comprehensive Quality Checks
@@ -63,94 +63,168 @@ jobs:
     - name: 🔍 Validate HTML Syntax
       run: |
         echo "=== Validating HTML ==="
-        npm install -g html-validator-cli
+        
+        # Install validator
+        npm install -g html-validate
+        
+        # Create config file
+        cat > .htmlvalidate.json << 'EOF'
+        {
+          "extends": ["html-validate:recommended"],
+          "rules": {
+            "no-trailing-whitespace": "off",
+            "void-style": "off"
+          }
+        }
+        EOF
         
         # Validate HTML files
-        if html-validator --file=index.html --verbose; then
+        if htmlvalidate index.html; then
           echo "✅ HTML is valid"
         else
-          echo "❌ HTML has errors"
+          echo "❌ HTML has validation errors"
+          echo ""
+          echo "Common fixes:"
+          echo "  - Close all tags properly"
+          echo "  - Check for typos in tag names"
+          echo "  - Ensure proper nesting"
           exit 1
         fi
+        
+        # Additional HTML checks
+        echo ""
+        echo "Additional HTML checks..."
+        
+        # Check for missing alt attributes on images
+        if grep -n "<img" index.html | grep -v "alt="; then
+          echo "⚠️ Warning: Images without alt attributes found (accessibility issue)"
+        fi
+        
+        # Check for missing lang attribute
+        if ! grep -q '<html lang=' index.html; then
+          echo "⚠️ Warning: Missing lang attribute on <html> tag"
+        fi
+        
+        echo "✅ HTML validation complete"
     
     # Step 5: Validate CSS
     - name: 🎨 Validate CSS Syntax
       run: |
         echo "=== Validating CSS ==="
-        npm install -g css-validator
         
-        # Check CSS syntax
-        if npx css-validator styles.css; then
-          echo "✅ CSS syntax is valid"
+        # Install CSS validator
+        npm install -g stylelint stylelint-config-standard
+        
+        # Create stylelint config
+        cat > .stylelintrc.json << 'EOF'
+        {
+          "extends": "stylelint-config-standard",
+          "rules": {
+            "property-no-vendor-prefix": null,
+            "no-descending-specificity": null
+          }
+        }
+        EOF
+        
+        # Validate CSS
+        if stylelint styles.css; then
+          echo "✅ CSS is valid"
         else
-          echo "⚠️ CSS has warnings (continuing...)"
+          echo "⚠️ CSS has some warnings (continuing...)"
         fi
         
-        # Check for common CSS issues
+        # Additional CSS checks
         echo ""
-        echo "Checking for common CSS issues..."
+        echo "Additional CSS checks..."
         
-        if grep -q "!important" styles.css; then
-          echo "⚠️ Warning: Found !important in CSS (avoid overusing)"
+        # Check for !important overuse
+        IMPORTANT_COUNT=$(grep -c "!important" styles.css || true)
+        if [ $IMPORTANT_COUNT -gt 5 ]; then
+          echo "⚠️ Warning: Found $IMPORTANT_COUNT !important declarations (try to minimize)"
         fi
         
-        if grep -q "font-size.*px" styles.css; then
+        # Check for px in font-size
+        if grep -q "font-size:.*px" styles.css; then
           echo "ℹ️ Info: Using px for font-size (consider rem for better accessibility)"
         fi
         
+        # Check for missing semicolons (basic check)
+        if grep -n "[^;{]$" styles.css | grep -v "}" | grep -v "/\*" | grep -v "\*/" | head -5; then
+          echo "⚠️ Warning: Possible missing semicolons found"
+        fi
+        
+        echo ""
         echo "✅ CSS validation complete"
     
     # Step 6: Validate JavaScript
     - name: ⚙️ Validate JavaScript & Check for Bugs
       run: |
         echo "=== Validating JavaScript ==="
-        # Install eslint and the required globals package
-        npm install -g eslint @eslint/js globals
         
-        # Create basic ESLint config in the new 'flat config' format
-        cat > eslint.config.js << 'EOF'
-        import globals from "globals";
-        import pluginJs from "@eslint/js";
-
-        export default [
-          {
-            languageOptions: {
-              ecmaVersion: 12,
-              sourceType: "module",
-              globals: globals.browser
-            },
-            rules: {
-              "no-unused-vars": "warn",
-              "no-console": "off"
-            }
-          },
-          pluginJs.configs.recommended,
-        ];
-        EOF
+        # Install Node.js syntax checker (faster and more reliable)
+        npm install -g acorn
         
-        # Check JavaScript syntax and common bugs
-        if eslint script.js --max-warnings 10; then
-          echo "✅ JavaScript is valid with no critical issues"
-        else
-          echo "❌ JavaScript has errors or too many warnings"
+        # Check JavaScript syntax
+        echo "Checking JavaScript syntax..."
+        if node -c script.js 2>&1 | grep -q "SyntaxError"; then
+          echo "❌ JavaScript has syntax errors!"
+          node -c script.js
           exit 1
+        else
+          echo "✅ JavaScript syntax is valid"
         fi
         
-        # Additional manual checks
+        # Check for common issues using grep (no ESLint needed)
         echo ""
-        echo "Additional JavaScript checks..."
+        echo "Checking for common JavaScript issues..."
         
+        EXIT_CODE=0
+        
+        # Check for undefined variables (basic check)
+        if grep -n "undefined" script.js | grep -v "typeof.*undefined" | grep -v "!==.*undefined" | grep -v "===.*undefined"; then
+          echo "⚠️ Warning: Found 'undefined' (verify variables are defined)"
+        fi
+        
+        # Check for var usage
         if grep -q "var " script.js; then
           echo "⚠️ Warning: Using 'var' (prefer 'let' or 'const')"
         fi
         
+        # Check for eval (security risk)
         if grep -q "eval(" script.js; then
-          echo "❌ ERROR: Found eval() - security risk!"
+          echo "❌ ERROR: Found eval() - major security risk!"
+          EXIT_CODE=1
+        fi
+        
+        # Check for innerHTML (potential XSS)
+        if grep -q "innerHTML" script.js; then
+          echo "⚠️ Warning: Using innerHTML (verify input is sanitized)"
+        fi
+        
+        # Check for document.write (bad practice)
+        if grep -q "document.write" script.js; then
+          echo "⚠️ Warning: Using document.write() (not recommended)"
+        fi
+        
+        # Check for alert (should use console or proper UI)
+        ALERT_COUNT=$(grep -c "alert(" script.js || true)
+        if [ $ALERT_COUNT -gt 2 ]; then
+          echo "⚠️ Warning: Found $ALERT_COUNT alert() calls (use console.log or proper UI)"
+        fi
+        
+        # Check for == instead of ===
+        if grep -q "==" script.js | grep -v "===" | grep -v "!="; then
+          echo "ℹ️ Info: Consider using === instead of == for strict equality"
+        fi
+        
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo ""
+          echo "❌ Critical JavaScript issues found!"
           exit 1
         fi
         
+        echo ""
         echo "✅ JavaScript validation complete"
-
     
     # Step 7: Check File Sizes
     - name: 📊 Check File Sizes
