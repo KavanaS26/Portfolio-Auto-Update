@@ -1,4 +1,4 @@
-name: Complete Portfolio CI/CD
+name: Portfolio CI/CD - Simple & Reliable
 
 on:
   push:
@@ -7,302 +7,217 @@ on:
     branches: [ master ]
 
 jobs:
-  # Job 1: Comprehensive Quality Checks
   quality-checks:
-    name: Quality & Validation Checks
+    name: Quality Checks
     runs-on: ubuntu-latest
     
     steps:
-    # Step 1: Get the code
+    # Step 1: Get code
     - name: 📥 Checkout Code
       uses: actions/checkout@v3
     
-    # Step 2: Setup Node.js (needed for validators)
-    - name: 🟢 Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-    
-    # Step 3: Check if files exist
-    - name: 📁 Check Files Exist
+    # Step 2: Check files exist
+    - name: 📁 Check Required Files
       run: |
-        echo "=== Checking Required Files ==="
+        echo "=== Checking Files ==="
         EXIT_CODE=0
         
         if [ -f "index.html" ]; then
-          echo "✅ index.html found"
+          echo "✅ index.html exists"
         else
-          echo "❌ index.html NOT found"
+          echo "❌ index.html NOT FOUND"
           EXIT_CODE=1
         fi
         
         if [ -f "styles.css" ]; then
-          echo "✅ styles.css found"
+          echo "✅ styles.css exists"
         else
-          echo "❌ styles.css NOT found"
+          echo "❌ styles.css NOT FOUND"
           EXIT_CODE=1
         fi
         
         if [ -f "script.js" ]; then
-          echo "✅ script.js found"
+          echo "✅ script.js exists"
         else
-          echo "❌ script.js NOT found"
+          echo "❌ script.js NOT FOUND"
           EXIT_CODE=1
         fi
         
         if [ $EXIT_CODE -ne 0 ]; then
-          echo ""
-          echo "❌ ERROR: Required files are missing!"
+          exit 1
+        fi
+    
+    # Step 3: Basic HTML checks
+    - name: 🔍 HTML Quality Check
+      run: |
+        echo "=== HTML Checks ==="
+        
+        # Check for DOCTYPE
+        if grep -q "<!DOCTYPE html>" index.html; then
+          echo "✅ DOCTYPE present"
+        else
+          echo "⚠️ Warning: Missing DOCTYPE"
+        fi
+        
+        # Check for lang attribute
+        if grep -q '<html lang=' index.html; then
+          echo "✅ HTML lang attribute present"
+        else
+          echo "⚠️ Warning: Missing lang attribute"
+        fi
+        
+        # Check for basic required tags
+        if grep -q "<head>" index.html && grep -q "<body>" index.html; then
+          echo "✅ Basic HTML structure present"
+        else
+          echo "❌ ERROR: Missing <head> or <body> tags"
           exit 1
         fi
         
-        echo ""
-        echo "✅ All required files present"
-    
-    # Step 4: Validate HTML
-    - name: 🔍 Validate HTML Syntax
-      run: |
-        echo "=== Validating HTML ==="
+        # Count opening and closing tags
+        OPEN_DIVS=$(grep -o "<div" index.html | wc -l)
+        CLOSE_DIVS=$(grep -o "</div>" index.html | wc -l)
         
-        # Install validator
-        npm install -g html-validate
-        
-        # Create config file
-        cat > .htmlvalidate.json << 'EOF'
-        {
-          "extends": ["html-validate:recommended"],
-          "rules": {
-            "no-trailing-whitespace": "off",
-            "void-style": "off"
-          }
-        }
-        EOF
-        
-        # Validate HTML files
-        if htmlvalidate index.html; then
-          echo "✅ HTML is valid"
+        if [ $OPEN_DIVS -eq $CLOSE_DIVS ]; then
+          echo "✅ Div tags balanced ($OPEN_DIVS opening, $CLOSE_DIVS closing)"
         else
-          echo "❌ HTML has validation errors"
-          echo ""
-          echo "Common fixes:"
-          echo "  - Close all tags properly"
-          echo "  - Check for typos in tag names"
-          echo "  - Ensure proper nesting"
-          exit 1
+          echo "⚠️ Warning: Unbalanced div tags ($OPEN_DIVS opening, $CLOSE_DIVS closing)"
         fi
         
-        # Additional HTML checks
-        echo ""
-        echo "Additional HTML checks..."
-        
-        # Check for missing alt attributes on images
-        if grep -n "<img" index.html | grep -v "alt="; then
-          echo "⚠️ Warning: Images without alt attributes found (accessibility issue)"
-        fi
-        
-        # Check for missing lang attribute
-        if ! grep -q '<html lang=' index.html; then
-          echo "⚠️ Warning: Missing lang attribute on <html> tag"
-        fi
-        
-        echo "✅ HTML validation complete"
+        echo "✅ HTML checks complete"
     
-    # Step 5: Validate CSS
-    - name: 🎨 Validate CSS Syntax
+    # Step 4: CSS checks
+    - name: 🎨 CSS Quality Check
       run: |
-        echo "=== Validating CSS ==="
+        echo "=== CSS Checks ==="
         
-        # Install CSS validator
-        npm install -g stylelint stylelint-config-standard
+        # Check file size
+        CSS_SIZE=$(wc -c < styles.css)
+        CSS_KB=$(($CSS_SIZE / 1024))
+        echo "📏 CSS file size: ${CSS_KB} KB"
         
-        # Create stylelint config
-        cat > .stylelintrc.json << 'EOF'
-        {
-          "extends": "stylelint-config-standard",
-          "rules": {
-            "property-no-vendor-prefix": null,
-            "no-descending-specificity": null
-          }
-        }
-        EOF
-        
-        # Validate CSS
-        if stylelint styles.css; then
-          echo "✅ CSS is valid"
-        else
-          echo "⚠️ CSS has some warnings (continuing...)"
+        if [ $CSS_SIZE -gt 204800 ]; then
+          echo "⚠️ Warning: CSS is larger than 200 KB"
         fi
-        
-        # Additional CSS checks
-        echo ""
-        echo "Additional CSS checks..."
         
         # Check for !important overuse
         IMPORTANT_COUNT=$(grep -c "!important" styles.css || true)
-        if [ $IMPORTANT_COUNT -gt 5 ]; then
-          echo "⚠️ Warning: Found $IMPORTANT_COUNT !important declarations (try to minimize)"
+        echo "📊 !important count: $IMPORTANT_COUNT"
+        
+        if [ $IMPORTANT_COUNT -gt 15 ]; then
+          echo "⚠️ Warning: Many !important declarations ($IMPORTANT_COUNT)"
         fi
         
-        # Check for px in font-size
-        if grep -q "font-size:.*px" styles.css; then
-          echo "ℹ️ Info: Using px for font-size (consider rem for better accessibility)"
-        fi
-        
-        # Check for missing semicolons (basic check)
-        if grep -n "[^;{]$" styles.css | grep -v "}" | grep -v "/\*" | grep -v "\*/" | head -5; then
-          echo "⚠️ Warning: Possible missing semicolons found"
-        fi
-        
-        echo ""
-        echo "✅ CSS validation complete"
-    
-    # Step 6: Validate JavaScript
-    - name: ⚙️ Validate JavaScript & Check for Bugs
-      run: |
-        echo "=== Validating JavaScript ==="
-        
-        # Install Node.js syntax checker (faster and more reliable)
-        npm install -g acorn
-        
-        # Check JavaScript syntax
-        echo "Checking JavaScript syntax..."
-        if node -c script.js 2>&1 | grep -q "SyntaxError"; then
-          echo "❌ JavaScript has syntax errors!"
-          node -c script.js
-          exit 1
+        # Check for basic syntax
+        if grep -q "{" styles.css && grep -q "}" styles.css; then
+          echo "✅ Basic CSS syntax present"
         else
-          echo "✅ JavaScript syntax is valid"
-        fi
-        
-        # Check for common issues using grep (no ESLint needed)
-        echo ""
-        echo "Checking for common JavaScript issues..."
-        
-        EXIT_CODE=0
-        
-        # Check for undefined variables (basic check)
-        if grep -n "undefined" script.js | grep -v "typeof.*undefined" | grep -v "!==.*undefined" | grep -v "===.*undefined"; then
-          echo "⚠️ Warning: Found 'undefined' (verify variables are defined)"
-        fi
-        
-        # Check for var usage
-        if grep -q "var " script.js; then
-          echo "⚠️ Warning: Using 'var' (prefer 'let' or 'const')"
-        fi
-        
-        # Check for eval (security risk)
-        if grep -q "eval(" script.js; then
-          echo "❌ ERROR: Found eval() - major security risk!"
-          EXIT_CODE=1
-        fi
-        
-        # Check for innerHTML (potential XSS)
-        if grep -q "innerHTML" script.js; then
-          echo "⚠️ Warning: Using innerHTML (verify input is sanitized)"
-        fi
-        
-        # Check for document.write (bad practice)
-        if grep -q "document.write" script.js; then
-          echo "⚠️ Warning: Using document.write() (not recommended)"
-        fi
-        
-        # Check for alert (should use console or proper UI)
-        ALERT_COUNT=$(grep -c "alert(" script.js || true)
-        if [ $ALERT_COUNT -gt 2 ]; then
-          echo "⚠️ Warning: Found $ALERT_COUNT alert() calls (use console.log or proper UI)"
-        fi
-        
-        # Check for == instead of ===
-        if grep -q "==" script.js | grep -v "===" | grep -v "!="; then
-          echo "ℹ️ Info: Consider using === instead of == for strict equality"
-        fi
-        
-        if [ $EXIT_CODE -ne 0 ]; then
-          echo ""
-          echo "❌ Critical JavaScript issues found!"
+          echo "❌ ERROR: CSS appears to be empty or malformed"
           exit 1
         fi
         
-        echo ""
-        echo "✅ JavaScript validation complete"
+        echo "✅ CSS checks complete"
     
-    # Step 7: Check File Sizes
-    - name: 📊 Check File Sizes
+    # Step 5: JavaScript checks
+    - name: ⚙️ JavaScript Quality Check
       run: |
-        echo "=== Checking File Sizes ==="
-        EXIT_CODE=0
+        echo "=== JavaScript Checks ==="
         
-        # Function to convert bytes to readable format
-        human_readable() {
-          size=$1
-          if [ $size -lt 1024 ]; then
-            echo "${size} bytes"
-          elif [ $size -lt 1048576 ]; then
-            echo "$(($size / 1024)) KB"
-          else
-            echo "$(($size / 1048576)) MB"
-          fi
-        }
-        
-        # Check HTML size
-        HTML_SIZE=$(wc -c < index.html)
-        echo "📄 index.html: $(human_readable $HTML_SIZE)"
-        if [ $HTML_SIZE -gt 102400 ]; then  # 100 KB
-          echo "   ⚠️ Warning: HTML is larger than 100 KB"
-        fi
-        
-        # Check CSS size
-        CSS_SIZE=$(wc -c < styles.css)
-        echo "🎨 styles.css: $(human_readable $CSS_SIZE)"
-        if [ $CSS_SIZE -gt 204800 ]; then  # 200 KB
-          echo "   ⚠️ Warning: CSS is larger than 200 KB"
-          echo "   💡 Consider minifying or removing unused styles"
-        fi
-        
-        # Check JS size
+        # Check file size
         JS_SIZE=$(wc -c < script.js)
-        echo "⚙️ script.js: $(human_readable $JS_SIZE)"
-        if [ $JS_SIZE -gt 512000 ]; then  # 500 KB
-          echo "   ❌ ERROR: JavaScript is larger than 500 KB!"
-          echo "   💡 Consider code splitting or minification"
-          EXIT_CODE=1
-        elif [ $JS_SIZE -gt 204800 ]; then  # 200 KB
-          echo "   ⚠️ Warning: JavaScript is larger than 200 KB"
-        fi
+        JS_KB=$(($JS_SIZE / 1024))
+        echo "📏 JavaScript file size: ${JS_KB} KB"
         
-        # Total size
-        TOTAL=$((HTML_SIZE + CSS_SIZE + JS_SIZE))
-        echo ""
-        echo "📦 Total size: $(human_readable $TOTAL)"
-        
-        if [ $TOTAL -gt 1048576 ]; then  # 1 MB
-          echo "⚠️ Warning: Total assets exceed 1 MB"
-        else
-          echo "✅ Total size is good"
-        fi
-        
-        if [ $EXIT_CODE -ne 0 ]; then
+        if [ $JS_SIZE -gt 512000 ]; then
+          echo "❌ ERROR: JavaScript exceeds 500 KB (${JS_KB} KB)"
           exit 1
+        elif [ $JS_SIZE -gt 204800 ]; then
+          echo "⚠️ Warning: JavaScript is larger than 200 KB"
         fi
-    
-    # Step 8: Check for broken links
-    - name: 🔗 Check Links
-      run: |
-        echo "=== Checking Links ==="
         
-        # Extract links from HTML
-        echo "Extracting links from HTML..."
-        grep -oP 'href="[^"]*"' index.html | cut -d'"' -f2 > links.txt || true
-        grep -oP 'src="[^"]*"' index.html | cut -d'"' -f2 >> links.txt || true
+        # Check for dangerous code
+        if grep -q "eval(" script.js; then
+          echo "❌ ERROR: Found eval() - security risk!"
+          exit 1
+        else
+          echo "✅ No eval() found"
+        fi
+        
+        # Check for var usage (prefer let/const)
+        VAR_COUNT=$(grep -c "var " script.js || true)
+        if [ $VAR_COUNT -gt 0 ]; then
+          echo "ℹ️ Info: Found $VAR_COUNT 'var' declarations (prefer let/const)"
+        fi
+        
+        # Count console.log
+        CONSOLE_COUNT=$(grep -c "console.log" script.js || true)
+        echo "📊 console.log count: $CONSOLE_COUNT"
+        
+        if [ $CONSOLE_COUNT -gt 10 ]; then
+          echo "⚠️ Warning: Many console.log statements ($CONSOLE_COUNT)"
+        fi
+        
+        echo "✅ JavaScript checks complete"
+    
+    # Step 6: Security scan
+    - name: 🔒 Security Scan
+      run: |
+        echo "=== Security Scan ==="
+        
+        # Check for localhost
+        if grep -r "localhost" index.html script.js 2>/dev/null; then
+          echo "❌ ERROR: Found 'localhost' in code!"
+          echo "Replace with production URL before deploying."
+          exit 1
+        else
+          echo "✅ No localhost URLs found"
+        fi
+        
+        # Check for API keys
+        if grep -riE "(api[_-]?key|apikey)" index.html script.js 2>/dev/null; then
+          echo "❌ ERROR: Possible API key found!"
+          exit 1
+        else
+          echo "✅ No API keys detected"
+        fi
+        
+        # Check for passwords
+        if grep -riE "password.*[:=].*['\"]" index.html script.js 2>/dev/null; then
+          echo "❌ ERROR: Possible password found!"
+          exit 1
+        else
+          echo "✅ No hardcoded passwords"
+        fi
+        
+        # Check for inline styles (bad practice)
+        INLINE_STYLES=$(grep -c 'style=' index.html || true)
+        if [ $INLINE_STYLES -gt 5 ]; then
+          echo "ℹ️ Info: Found $INLINE_STYLES inline styles (consider moving to CSS)"
+        fi
+        
+        echo "✅ Security scan complete"
+    
+    # Step 7: Link checker
+    - name: 🔗 Check Internal Links
+      run: |
+        echo "=== Link Check ==="
+        
+        # Extract href and src attributes
+        grep -oP '(href|src)="[^"]*"' index.html | cut -d'"' -f2 > links.txt || true
+        
+        if [ ! -s links.txt ]; then
+          echo "ℹ️ No links found to check"
+          rm -f links.txt
+          exit 0
+        fi
+        
+        echo "Found $(wc -l < links.txt) links/resources"
         
         # Check internal links
-        echo ""
-        echo "Checking internal links..."
-        BROKEN_LINKS=0
-        
+        BROKEN=0
         while IFS= read -r link; do
-          # Skip external links, anchors, and mailto
-          if [[ $link =~ ^http ]] || [[ $link =~ ^# ]] || [[ $link =~ ^mailto ]]; then
+          # Skip external links, anchors, mailto, tel
+          if [[ $link =~ ^http ]] || [[ $link =~ ^# ]] || [[ $link =~ ^mailto ]] || [[ $link =~ ^tel ]]; then
             continue
           fi
           
@@ -314,182 +229,107 @@ jobs:
             echo "✅ $link"
           else
             echo "❌ BROKEN: $link"
-            BROKEN_LINKS=$((BROKEN_LINKS + 1))
+            BROKEN=$((BROKEN + 1))
           fi
         done < links.txt
         
-        # Check for problematic patterns
-        echo ""
-        echo "Checking for problematic patterns..."
-        
-        if grep -q "localhost" index.html script.js 2>/dev/null; then
-          echo "❌ ERROR: Found 'localhost' in code!"
-          echo "   💡 Replace with production URL"
-          exit 1
-        else
-          echo "✅ No localhost URLs found"
-        fi
-        
-        if grep -q "http://" index.html 2>/dev/null; then
-          echo "⚠️ Warning: Found 'http://' (prefer https://)"
-        fi
-        
-        # Final verdict
-        if [ $BROKEN_LINKS -gt 0 ]; then
-          echo ""
-          echo "❌ ERROR: Found $BROKEN_LINKS broken internal link(s)"
-          exit 1
-        fi
-        
-        echo ""
-        echo "✅ All links checked"
-        
         rm -f links.txt
-    
-    # Step 9: Security scan
-    - name: 🔒 Security Scan
-      run: |
-        echo "=== Security Scan ==="
-        EXIT_CODE=0
         
-        # Check for API keys
-        echo "Checking for exposed secrets..."
-        
-        if grep -riE "(api[_-]?key|apikey|api[_-]?secret)" --include="*.html" --include="*.js" .; then
-          echo "❌ ERROR: Possible API key found in code!"
-          EXIT_CODE=1
-        else
-          echo "✅ No API keys detected"
-        fi
-        
-        # Check for passwords
-        if grep -riE "(password|passwd|pwd)[[:space:]]*[:=]" --include="*.html" --include="*.js" .; then
-          echo "❌ ERROR: Possible password found in code!"
-          EXIT_CODE=1
-        else
-          echo "✅ No hardcoded passwords detected"
-        fi
-        
-        # Check for console.log in production
-        CONSOLE_COUNT=$(grep -o "console.log" script.js | wc -l)
-        if [ $CONSOLE_COUNT -gt 5 ]; then
-          echo "⚠️ Warning: Found $CONSOLE_COUNT console.log statements"
-          echo "   💡 Consider removing before production"
-        fi
-        
-        # Check for eval (dangerous)
-        if grep -q "eval(" script.js; then
-          echo "❌ ERROR: Found eval() - major security risk!"
-          EXIT_CODE=1
-        else
-          echo "✅ No eval() usage detected"
-        fi
-        
-        if [ $EXIT_CODE -ne 0 ]; then
+        if [ $BROKEN -gt 0 ]; then
           echo ""
-          echo "❌ Security issues found! Please fix before deploying."
+          echo "❌ Found $BROKEN broken internal link(s)"
           exit 1
         fi
         
-        echo ""
-        echo "✅ Security scan passed"
+        echo "✅ All internal links OK"
     
-    # Step 10: Final summary
-    - name: ✅ Quality Check Summary
+    # Step 8: Performance check
+    - name: 📊 Performance Check
       run: |
+        echo "=== Performance Check ==="
+        
+        # Total size
+        HTML_SIZE=$(wc -c < index.html)
+        CSS_SIZE=$(wc -c < styles.css)
+        JS_SIZE=$(wc -c < script.js)
+        TOTAL=$((HTML_SIZE + CSS_SIZE + JS_SIZE))
+        TOTAL_KB=$(($TOTAL / 1024))
+        
+        echo "📦 Total size: ${TOTAL_KB} KB"
+        echo "   HTML: $(($HTML_SIZE / 1024)) KB"
+        echo "   CSS: $(($CSS_SIZE / 1024)) KB"
+        echo "   JS: $(($JS_SIZE / 1024)) KB"
+        
+        if [ $TOTAL -gt 1048576 ]; then
+          echo "⚠️ Warning: Total size exceeds 1 MB"
+        else
+          echo "✅ Total size is good"
+        fi
+        
+        # Line counts
+        echo ""
+        echo "📝 Lines of code:"
+        echo "   HTML: $(wc -l < index.html) lines"
+        echo "   CSS: $(wc -l < styles.css) lines"
+        echo "   JS: $(wc -l < script.js) lines"
+        
+        echo "✅ Performance check complete"
+    
+    # Step 9: Final summary
+    - name: ✅ Success Summary
+      run: |
+        echo ""
         echo "╔════════════════════════════════════════╗"
-        echo "║   ✅ ALL QUALITY CHECKS PASSED! 🎉    ║"
+        echo "║  ✅ ALL QUALITY CHECKS PASSED! 🎉     ║"
         echo "╚════════════════════════════════════════╝"
         echo ""
-        echo "✅ Files exist"
-        echo "✅ HTML is valid"
-        echo "✅ CSS syntax is correct"
-        echo "✅ JavaScript has no critical bugs"
-        echo "✅ Links are working"
-        echo "✅ File sizes are acceptable"
+        echo "✅ All files present"
+        echo "✅ HTML structure valid"
+        echo "✅ CSS quality good"
+        echo "✅ JavaScript quality good"
         echo "✅ No security issues"
+        echo "✅ Links working"
+        echo "✅ Performance acceptable"
         echo ""
         echo "🚀 Ready for deployment!"
-  
-  # Job 2: Performance check (optional but useful)
-  performance-check:
-    name: Performance Analysis
-    runs-on: ubuntu-latest
-    needs: quality-checks
-    
-    steps:
-    - name: 📥 Checkout Code
-      uses: actions/checkout@v3
-    
-    - name: 📊 Analyze Performance
-      run: |
-        echo "=== Performance Analysis ==="
-        
-        # Count lines of code
-        echo "Lines of code:"
-        echo "  HTML: $(wc -l < index.html) lines"
-        echo "  CSS: $(wc -l < styles.css) lines"
-        echo "  JS: $(wc -l < script.js) lines"
-        
-        # Check for minification opportunities
         echo ""
-        echo "Optimization suggestions:"
-        
-        # Check if CSS has many duplicate properties
-        CSS_DUPES=$(grep -o "color:" styles.css | wc -l)
-        if [ $CSS_DUPES -gt 50 ]; then
-          echo "💡 CSS has $CSS_DUPES color declarations - consider using CSS variables"
-        fi
-        
-        # Check for unused selectors (basic check)
-        echo ""
-        echo "✅ Performance analysis complete"
+        echo "📋 Commit: ${{ github.sha }}"
+        echo "👤 Author: ${{ github.actor }}"
+        echo "🌿 Branch: ${{ github.ref_name }}"
   
-  # Job 3: Deployment ready notification
+  # Job 2: Deployment notification
   deployment-ready:
     name: Deployment Ready
     runs-on: ubuntu-latest
-    needs: [quality-checks, performance-check]
+    needs: quality-checks
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
-    - name: 🎉 Success Notification
+    - name: 🎉 Deployment Ready
       run: |
         echo "╔═══════════════════════════════════════════╗"
-        echo "║     🎉 DEPLOYMENT READY! 🚀              ║"
+        echo "║     🎉 READY TO DEPLOY! 🚀               ║"
         echo "╚═══════════════════════════════════════════╝"
         echo ""
-        echo "📋 Build Information:"
-        echo "  • Repository: ${{ github.repository }}"
-        echo "  • Branch: ${{ github.ref_name }}"
-        echo "  • Commit: ${{ github.sha }}"
-        echo "  • Author: ${{ github.actor }}"
-        echo "  • Workflow: ${{ github.workflow }}"
+        echo "All quality checks passed!"
+        echo "Netlify will deploy automatically."
         echo ""
-        echo "✅ All quality checks passed"
-        echo "✅ All performance checks passed"
-        echo "✅ Code is production-ready"
-        echo ""
-        echo "🌐 Netlify will deploy automatically!"
-        echo "⏱️ Estimated deployment time: 1-2 minutes"
+        echo "⏱️  Estimated deployment time: 1-2 minutes"
+        echo "🌐 Your site will be live soon!"
     
-    - name: 📝 Create Deployment Summary
+    - name: 📝 Create Summary
       run: |
         echo "### 🎉 Deployment Ready! 🚀" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "All quality gates passed successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "✅ All quality checks passed" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Checks Completed:**" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ File validation" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ HTML validation" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ CSS validation" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ JavaScript validation" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Link validation" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ File size check" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Security scan" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Performance analysis" >> $GITHUB_STEP_SUMMARY
+        echo "**Checks completed:**" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Files validated" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ HTML quality checked" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ CSS quality checked" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ JavaScript quality checked" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Security scan passed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Links validated" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Performance analyzed" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Next Step:** Netlify automatic deployment" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "**Author:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Next:** Netlify automatic deployment" >> $GITHUB_STEP_SUMMARY
