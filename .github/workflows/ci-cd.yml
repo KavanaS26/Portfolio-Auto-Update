@@ -103,7 +103,7 @@ jobs:
         
         for tag in "${tags[@]}"; do
           # Count opening tags (exclude self-closing and closing tags)
-          open=$(grep -o "<$tag[^>]*>" index.html | grep -v "</$tag>" | wc -l)
+          open=$(grep -o -E "<$tag([[:space:]>])[^>]*>" index.html | grep -v "</$tag>" | wc -l)
           # Count closing tags
           close=$(grep -o "</$tag>" index.html | wc -l)
           
