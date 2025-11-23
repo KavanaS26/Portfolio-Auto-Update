@@ -1,437 +1,192 @@
-name: Portfolio CI/CD - Robust Validation
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Portfolio of [Your Name] - Web Developer">
+    <title>DevOps-Auto Potfolio Updater</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h2>Adithi Guptha
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#projects">Projects</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
 
-on:
-  push:
-    branches: [ master, main ]
-  pull_request:
-    branches: [ master, main ]
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">Hi, I'm <span class="highlight">Adithi Gupta</span></h1>
+                <p class="hero-subtitle">Web Developer | DevOps Enthusiast</p>
+                <p class="hero-description">
+                    I build modern web applications with automated deployment pipelines
+                </p>
+                <div class="hero-buttons">
+                    <a href="#projects" class="btn btn-primary">View Projects</a>
+                    <a href="#contact" class="btn btn-secondary">Contact Me</a>
+                </div>
+            </div>
+        </div>
+    </section>
 
-jobs:
-  quality-checks:
-    name: Quality Checks
-    runs-on: ubuntu-latest
-    
-    steps:
-    # Step 1: Get code
-    - name: 📥 Checkout Code
-      uses: actions/checkout@v3
-    
-    # Step 2: Setup Node.js
-    - name: 🟢 Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-    
-    # Step 3: Check files exist
-    - name: 📁 Check Required Files
-      run: |
-        echo "=== Checking Required Files ==="
-        EXIT_CODE=0
-        
-        if [ -f "index.html" ]; then
-          echo "✅ index.html exists"
-        else
-          echo "❌ index.html NOT FOUND"
-          EXIT_CODE=1
-        fi
-        
-        if [ -f "styles.css" ]; then
-          echo "✅ styles.css exists"
-        else
-          echo "❌ styles.css NOT FOUND"
-          EXIT_CODE=1
-        fi
-        
-        if [ -f "script.js" ]; then
-          echo "✅ script.js exists"
-        else
-          echo "❌ script.js NOT FOUND"
-          EXIT_CODE=1
-        fi
-        
-        if [ $EXIT_CODE -ne 0 ]; then
-          echo ""
-          echo "❌ ERROR: Required files are missing!"
-          exit 1
-        fi
-        
-        echo "✅ All required files present"
-    
-    # Step 4: Validate HTML Structure
-    - name: 🔍 Validate HTML Structure
-      run: |
-        echo "=== Validating HTML Structure ==="
-        
-        # Install HTML validator (using html-validate which is reliable)
-        npm install html-validate
-        
-        # Create minimal config
-        cat > .htmlvalidate.json << 'EOF'
-        {
-          "extends": ["html-validate:recommended"],
-          "rules": {
-            "no-trailing-whitespace": "off",
-            "void-style": "off",
-            "no-inline-style": "off"
-          }
-        }
-        EOF
-        
-        # Run validation
-        echo "Running HTML validation..."
-        if npx htmlvalidate index.html 2>&1 | tee validation.log; then
-          echo "✅ HTML structure validation passed"
-        else
-          echo ""
-          echo "❌ HTML VALIDATION FAILED!"
-          echo ""
-          echo "Errors found:"
-          cat validation.log
-          echo ""
-          echo "Common issues to check:"
-          echo "  1. All opening tags have closing tags"
-          echo "  2. Tags are properly nested"
-          echo "  3. No typos in tag names"
-          echo "  4. Attributes have proper quotes"
-          exit 1
-        fi
-        
-        # Additional checks - Check tag balance
-        echo ""
-        echo "Checking tag balance..."
-        EXIT_CODE=0
-        
-        for tag in div section article header footer nav main body head html; do
-          OPEN=$(grep -o "<$tag" index.html | grep -v "</$tag" | wc -l)
-          CLOSE=$(grep -o "</$tag>" index.html | wc -l)
-          
-          if [ $OPEN -ne $CLOSE ]; then
-            echo "❌ ERROR: Unbalanced <$tag> tags (opening: $OPEN, closing: $CLOSE)"
-            EXIT_CODE=1
-          else
-            echo "✅ <$tag> tags balanced ($OPEN pairs)"
-          fi
-        done
-        
-        if [ $EXIT_CODE -ne 0 ]; then
-          echo ""
-          echo "Fix the unbalanced tags above before deploying!"
-          exit 1
-        fi
-        
-        echo ""
-        echo "✅ HTML validation complete"
-    
-    # Step 5: Validate CSS with proper validator
-    - name: 🎨 Validate CSS Syntax
-      run: |
-        echo "=== Validating CSS ==="
-        
-        # Install CSS lint
-        npm install -g csslint
-        
-        # Run CSS validation
-        echo "Running CSS validation..."
-        if csslint --errors=errors,duplicate-properties,empty-rules styles.css; then
-          echo "✅ CSS has no critical errors"
-        else
-          echo "❌ CSS validation failed!"
-          echo ""
-          echo "Common CSS errors:"
-          echo "  1. Missing semicolons"
-          echo "  2. Unclosed braces { }"
-          echo "  3. Invalid property names"
-          echo "  4. Wrong property values"
-          exit 1
-        fi
-        
-        # Check for basic syntax
-        echo ""
-        echo "Checking CSS structure..."
-        
-        # Count braces
-        OPEN_BRACES=$(grep -o "{" styles.css | wc -l)
-        CLOSE_BRACES=$(grep -o "}" styles.css | wc -l)
-        
-        if [ $OPEN_BRACES -ne $CLOSE_BRACES ]; then
-          echo "❌ ERROR: Unbalanced braces (open: $OPEN_BRACES, close: $CLOSE_BRACES)"
-          exit 1
-        else
-          echo "✅ CSS braces balanced ($OPEN_BRACES pairs)"
-        fi
-        
-        # Check file size
-        CSS_SIZE=$(wc -c < styles.css)
-        CSS_KB=$(($CSS_SIZE / 1024))
-        echo "📏 CSS file size: ${CSS_KB} KB"
-        
-        if [ $CSS_SIZE -gt 204800 ]; then
-          echo "⚠️ Warning: CSS is larger than 200 KB"
-        fi
-        
-        echo "✅ CSS validation complete"
-    
-    # Step 6: Validate JavaScript with proper syntax checker
-    - name: ⚙️ Validate JavaScript Syntax
-      run: |
-        echo "=== Validating JavaScript ==="
-        
-        # Use Node.js to check syntax
-        echo "Checking JavaScript syntax..."
-        if node --check script.js 2>&1 | tee js_errors.log; then
-          echo "✅ JavaScript syntax is valid"
-        else
-          echo ""
-          echo "❌ JAVASCRIPT SYNTAX ERROR!"
-          echo ""
-          cat js_errors.log
-          echo ""
-          echo "Common JavaScript errors:"
-          echo "  1. Missing closing brackets/braces"
-          echo "  2. Unclosed strings"
-          echo "  3. Missing semicolons (sometimes)"
-          echo "  4. Typos in keywords"
-          exit 1
-        fi
-        
-        # Check for dangerous code
-        echo ""
-        echo "Running security checks..."
-        
-        if grep -q "eval(" script.js; then
-          echo "❌ ERROR: Found eval() - major security risk!"
-          exit 1
-        else
-          echo "✅ No eval() found"
-        fi
-        
-        # Check for var usage
-        VAR_COUNT=$(grep -c "var " script.js || true)
-        if [ $VAR_COUNT -gt 0 ]; then
-          echo "⚠️ Warning: Found $VAR_COUNT 'var' declarations (prefer let/const)"
-        else
-          echo "✅ No 'var' usage (good practice)"
-        fi
-        
-        # Count console.log
-        CONSOLE_COUNT=$(grep -c "console.log" script.js || true)
-        if [ $CONSOLE_COUNT -gt 15 ]; then
-          echo "⚠️ Warning: Many console.log statements ($CONSOLE_COUNT) - consider removing for production"
-        else
-          echo "✅ Console.log usage acceptable ($CONSOLE_COUNT)"
-        fi
-        
-        # Check file size
-        JS_SIZE=$(wc -c < script.js)
-        JS_KB=$(($JS_SIZE / 1024))
-        echo "📏 JavaScript file size: ${JS_KB} KB"
-        
-        if [ $JS_SIZE -gt 512000 ]; then
-          echo "❌ ERROR: JavaScript exceeds 500 KB!"
-          exit 1
-        elif [ $JS_SIZE -gt 204800 ]; then
-          echo "⚠️ Warning: JavaScript is larger than 200 KB"
-        fi
-        
-        echo "✅ JavaScript validation complete"
-    
-    # Step 7: Enhanced Security Scan
-    - name: 🔒 Security Scan
-      run: |
-        echo "=== Security Scan ==="
-        
-        EXIT_CODE=0
-        
-        # Check for localhost
-        echo "Checking for localhost URLs..."
-        if grep -rn "localhost" index.html script.js 2>/dev/null; then
-          echo ""
-          echo "❌ ERROR: Found 'localhost' in code!"
-          echo "These URLs won't work in production."
-          echo "Replace with your production URL."
-          EXIT_CODE=1
-        else
-          echo "✅ No localhost URLs found"
-        fi
-        
-        # Check for API keys
-        echo ""
-        echo "Checking for exposed API keys..."
-        if grep -rinE "(api[_-]?key|apikey|api[_-]?secret)" index.html script.js 2>/dev/null; then
-          echo ""
-          echo "❌ ERROR: Possible API key found in code!"
-          echo "Never commit API keys to GitHub!"
-          EXIT_CODE=1
-        else
-          echo "✅ No API keys detected"
-        fi
-        
-        # Check for passwords
-        echo ""
-        echo "Checking for hardcoded passwords..."
-        if grep -rinE "password.*[:=].*['\"]" index.html script.js 2>/dev/null; then
-          echo ""
-          echo "❌ ERROR: Possible password found in code!"
-          EXIT_CODE=1
-        else
-          echo "✅ No hardcoded passwords"
-        fi
-        
-        # Check for TODO/FIXME
-        echo ""
-        echo "Checking for unfinished work..."
-        TODO_COUNT=$(grep -ric "TODO\|FIXME" index.html styles.css script.js || true)
-        if [ $TODO_COUNT -gt 0 ]; then
-          echo "ℹ️ Info: Found $TODO_COUNT TODO/FIXME comments"
-          grep -rn "TODO\|FIXME" index.html styles.css script.js || true
-        else
-          echo "✅ No TODO/FIXME comments"
-        fi
-        
-        if [ $EXIT_CODE -ne 0 ]; then
-          echo ""
-          echo "❌ Security issues found! Fix before deploying."
-          exit 1
-        fi
-        
-        echo ""
-        echo "✅ Security scan passed"
-    
-    # Step 8: Link Checker
-    - name: 🔗 Check Internal Links
-      run: |
-        echo "=== Link Validation ==="
-        
-        # Extract all links
-        grep -oP '(href|src)="[^"]*"' index.html | cut -d'"' -f2 > links.txt || true
-        
-        if [ ! -s links.txt ]; then
-          echo "ℹ️ No links found"
-          rm -f links.txt
-          exit 0
-        fi
-        
-        echo "Found $(wc -l < links.txt) links to check"
-        
-        BROKEN=0
-        while IFS= read -r link; do
-          # Skip external, anchors, mailto, tel
-          if [[ $link =~ ^http ]] || [[ $link =~ ^# ]] || [[ $link =~ ^mailto ]] || [[ $link =~ ^tel ]]; then
-            continue
-          fi
-          
-          # Remove leading ./
-          link=${link#./}
-          
-          if [ -f "$link" ]; then
-            echo "✅ $link"
-          else
-            echo "❌ BROKEN: $link"
-            BROKEN=$((BROKEN + 1))
-          fi
-        done < links.txt
-        
-        rm -f links.txt
-        
-        if [ $BROKEN -gt 0 ]; then
-          echo ""
-          echo "❌ Found $BROKEN broken link(s)!"
-          echo "Fix these broken references before deploying."
-          exit 1
-        fi
-        
-        echo "✅ All internal links valid"
-    
-    # Step 9: Performance Check
-    - name: 📊 Performance Analysis
-      run: |
-        echo "=== Performance Analysis ==="
-        
-        # File sizes
-        HTML_SIZE=$(wc -c < index.html)
-        CSS_SIZE=$(wc -c < styles.css)
-        JS_SIZE=$(wc -c < script.js)
-        TOTAL=$((HTML_SIZE + CSS_SIZE + JS_SIZE))
-        
-        echo "📦 File Sizes:"
-        printf "   HTML: %6d KB (%d bytes)\n" $(($HTML_SIZE / 1024)) $HTML_SIZE
-        printf "   CSS:  %6d KB (%d bytes)\n" $(($CSS_SIZE / 1024)) $CSS_SIZE
-        printf "   JS:   %6d KB (%d bytes)\n" $(($JS_SIZE / 1024)) $JS_SIZE
-        printf "   Total: %6d KB\n" $(($TOTAL / 1024))
-        
-        if [ $TOTAL -gt 1048576 ]; then
-          echo "⚠️ Warning: Total exceeds 1 MB"
-        else
-          echo "✅ Total size is acceptable"
-        fi
-        
-        # Line counts
-        echo ""
-        echo "📝 Lines of Code:"
-        printf "   HTML: %6d lines\n" $(wc -l < index.html)
-        printf "   CSS:  %6d lines\n" $(wc -l < styles.css)
-        printf "   JS:   %6d lines\n" $(wc -l < script.js)
-        
-        echo "✅ Performance analysis complete"
-    
-    # Step 10: Final Summary
-    - name: ✅ Validation Summary
-      run: |
-        echo ""
-        echo "╔═══════════════════════════════════════════╗"
-        echo "║  ✅ ALL VALIDATIONS PASSED! 🎉           ║"
-        echo "╚═══════════════════════════════════════════╝"
-        echo ""
-        echo "✅ All files present"
-        echo "✅ HTML structure validated (W3C)"
-        echo "✅ CSS syntax validated"
-        echo "✅ JavaScript syntax validated"
-        echo "✅ Security scan passed"
-        echo "✅ Links validated"
-        echo "✅ Performance checked"
-        echo ""
-        echo "🚀 Code is production-ready!"
-        echo ""
-        echo "📋 Commit: ${{ github.sha }}"
-        echo "👤 Author: ${{ github.actor }}"
-        echo "🌿 Branch: ${{ github.ref_name }}"
-  
-  deployment-ready:
-    name: Deployment Ready
-    runs-on: ubuntu-latest
-    needs: quality-checks
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    
-    steps:
-    - name: 🎉 Ready to Deploy
-      run: |
-        echo "╔═══════════════════════════════════════════╗"
-        echo "║     🎉 DEPLOYMENT READY! 🚀              ║"
-        echo "╚═══════════════════════════════════════════╝"
-        echo ""
-        echo "✅ All quality checks passed"
-        echo "✅ All validations successful"
-        echo "✅ Code is production-ready"
-        echo ""
-        echo "🌐 Your site will deploy automatically"
-        echo "⏱️  Estimated time: 1-2 minutes"
-    
-    - name: 📝 Create Summary
-      run: |
-        echo "### 🎉 Deployment Ready! 🚀" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "All quality gates passed successfully!" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Validations Completed:**" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ File existence check" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ HTML validation (W3C)" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ CSS validation" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ JavaScript syntax check" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Security scan" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Link validation" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Performance analysis" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Build Info:**" >> $GITHUB_STEP_SUMMARY
-        echo "- Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- Author: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Branch: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container">
+            <h2 class="section-title">About Me</h2>
+            <div class="about-content">
+                <div class="about-text">
+                    <p>
+                        I'm a passionate web developer focused on creating efficient, 
+                        user-friendly applications. I specialize in front-end development 
+                        and DevOps practices.
+                    </p>
+                    <p>
+                        Currently learning CI/CD automation, cloud deployment, and 
+                        modern web technologies.
+                    </p>
+                    <div class="skills">
+                        <h3>Skills</h3>
+                        <div class="skill-tags">
+                            <span class="skill-tag">HTML/CSS</span>
+                            <span class="skill-tag">JavaScript</span>
+                            <span class="skill-tag">Git & GitHub</span>
+                            <span class="skill-tag">CI/CD</span>
+                            <span class="skill-tag">Netlify</span>
+                            <span class="skill-tag">GitHub Actions</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Projects Section -->
+    <section id="projects" class="projects">
+        <div class="container">
+            <h2 class="section-title">My Projects</h2>
+            <div class="projects-grid">
+                
+                <!-- Project 1 - This Portfolio -->
+                <div class="project-card">
+                    <div class="project-image">
+                        <div class="project-placeholder">🚀</div>
+                    </div>
+                    <div class="project-content">
+                        <h3>Auto-Deploying Portfolio</h3>
+                        <p>
+                            Personal portfolio with automated CI/CD pipeline using 
+                            GitHub Actions and Netlify.
+                        </p>
+                        <div class="project-tags">
+                            <span>HTML/CSS/JS</span>
+                            <span>GitHub Actions</span>
+                            <span>Netlify</span>
+                        </div>
+                        <div class="project-links">
+                            <a href="#" class="btn-small">Live Demo</a>
+                            <a href="#" class="btn-small btn-outline">GitHub</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Project 2 - Placeholder -->
+                <div class="project-card">
+                    <div class="project-image">
+                        <div class="project-placeholder">💼</div>
+                    </div>
+                    <div class="project-content">
+                        <h3>Project Name</h3>
+                        <p>
+                            Description of your second project. What did you build 
+                            and what technologies did you use?
+                        </p>
+                        <div class="project-tags">
+                            <span>React</span>
+                            <span>API</span>
+                        </div>
+                        <div class="project-links">
+                            <a href="#" class="btn-small">Live Demo</a>
+                            <a href="#" class="btn-small btn-outline">GitHub</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Project 3 - Placeholder -->
+                <div class="project-card">
+                    <div class="project-image">
+                        <div class="project-placeholder">🎮</div>
+                    </div>
+                    <div class="project-content">
+                        <h3>Another Project</h3>
+                        <p>
+                            Add more projects as you build them. This section will 
+                            grow with your portfolio!
+                        </p>
+                        <div class="project-tags">
+                            <span>JavaScript</span>
+                            <span>CSS</span>
+                        </div>
+                        <div class="project-links">
+                            <a href="#" class="btn-small">Live Demo</a>
+                            <a href="#" class="btn-small btn-outline">GitHub</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2 class="section-title">Get In Touch</h2>
+            <div class="contact-content">
+                <p class="contact-text">
+                    I'm always interested in hearing about new opportunities and projects.
+                </p>
+                <div class="contact-methods">
+                    <a href="mailto:your.email@example.com" class="contact-link">
+                        <span class="icon">📧</span>
+                        adithigupta@gmail.com
+                    </a>
+                    <a href="https://github.com/yourusername" class="contact-link" target="_blank">
+                        <span class="icon">💻</span>
+                        GitHub
+                    </a>
+                    <a href="https://linkedin.com/in/yourprofile" class="contact-link" target="_blank">
+                        <span class="icon">👔</span>
+                        LinkedIn
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 Your Name. Built with ❤️ and deployed automatically!</p>
+            <p class="footer-note">Last updated: <span id="last-updated"></span></p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
