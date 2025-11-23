@@ -97,7 +97,8 @@ jobs:
         echo ""
         echo "Double-checking tag balance..."
         
-        tags=("div" "section" "article" "header" "footer" "nav" "main" "body" "head" "html" "form" "ul" "ol")
+        # Comprehensive list of HTML tags to check
+        tags=("div" "section" "article" "header" "footer" "nav" "main" "body" "head" "html" "form" "ul" "ol" "li" "table" "tr" "td" "th" "tbody" "thead" "h1" "h2" "h3" "h4" "h5" "h6" "p" "a" "span" "button")
         errors=0
         
         for tag in "${tags[@]}"; do
@@ -110,7 +111,9 @@ jobs:
             echo "❌ ERROR: <$tag> unbalanced (open: $open, close: $close)"
             errors=1
           else
-            echo "✅ <$tag> balanced ($open pairs)"
+            if [ $open -gt 0 ]; then
+              echo "✅ <$tag> balanced ($open pairs)"
+            fi
           fi
         done
         
