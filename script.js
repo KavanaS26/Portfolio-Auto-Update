@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
             link.addEventListener('click', () => {
                 navMenu.classList.remove('active');
                 hamburger.classList.remove('active');
-            
+            });
         });
     }
 

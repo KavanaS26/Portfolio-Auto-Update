@@ -302,7 +302,7 @@ jobs:
     name: Deployment Ready
     runs-on: ubuntu-latest
     needs: quality-checks
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     
     steps:
     - name: 🎉 Deployment Ready
