@@ -57,22 +57,30 @@ jobs:
         
         echo "✅ All required files present"
     
-    # Step 4: Validate HTML Structure with W3C Validator
-    - name: 🔍 Validate HTML with W3C Validator
+    # Step 4: Validate HTML Structure
+    - name: 🔍 Validate HTML Structure
       run: |
         echo "=== Validating HTML Structure ==="
         
-        # Install HTML validator that uses W3C standards
-        npm install -g vnu-jar
+        # Install HTML validator (using html-validate which is reliable)
+        npm install html-validate
         
-        # Download vnu validator
-        wget -q https://github.com/validator/validator/releases/download/latest/vnu.jar_latest.zip
-        unzip -q vnu.jar_latest.zip
+        # Create minimal config
+        cat > .htmlvalidate.json << 'EOF'
+        {
+          "extends": ["html-validate:recommended"],
+          "rules": {
+            "no-trailing-whitespace": "off",
+            "void-style": "off",
+            "no-inline-style": "off"
+          }
+        }
+        EOF
         
         # Run validation
-        echo "Running W3C HTML validation..."
-        if java -jar dist/vnu.jar --errors-only index.html 2>&1 | tee validation.log; then
-          echo "✅ HTML validation passed"
+        echo "Running HTML validation..."
+        if npx htmlvalidate index.html 2>&1 | tee validation.log; then
+          echo "✅ HTML structure validation passed"
         else
           echo ""
           echo "❌ HTML VALIDATION FAILED!"
@@ -88,23 +96,30 @@ jobs:
           exit 1
         fi
         
-        # Additional checks
+        # Additional checks - Check tag balance
         echo ""
-        echo "Additional HTML checks..."
-        
-        # Check for unclosed tags (backup method)
         echo "Checking tag balance..."
-        for tag in div section article header footer nav main; do
-          OPEN=$(grep -o "<$tag" index.html | wc -l)
+        EXIT_CODE=0
+        
+        for tag in div section article header footer nav main body head html; do
+          OPEN=$(grep -o "<$tag" index.html | grep -v "</$tag" | wc -l)
           CLOSE=$(grep -o "</$tag>" index.html | wc -l)
+          
           if [ $OPEN -ne $CLOSE ]; then
-            echo "❌ ERROR: Unbalanced <$tag> tags (open: $OPEN, close: $CLOSE)"
-            exit 1
+            echo "❌ ERROR: Unbalanced <$tag> tags (opening: $OPEN, closing: $CLOSE)"
+            EXIT_CODE=1
           else
-            echo "✅ <$tag> tags balanced"
+            echo "✅ <$tag> tags balanced ($OPEN pairs)"
           fi
         done
         
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo ""
+          echo "Fix the unbalanced tags above before deploying!"
+          exit 1
+        fi
+        
+        echo ""
         echo "✅ HTML validation complete"
     
     # Step 5: Validate CSS with proper validator
